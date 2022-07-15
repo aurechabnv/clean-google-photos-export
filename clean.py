@@ -6,40 +6,42 @@ import os
 import piexif
 import typer
 
-EXT_TO_PROCESS = (".jpg", ".jpeg", ".png", ".mp4", ".mp")
-EXT_TO_ARCHIVE = (".mp", ".json")
-
 SOURCE_FILE = Path(__file__).resolve()
 SOURCE_DIR = SOURCE_FILE.parent
-DATA_DIR = SOURCE_DIR / "data"
+
+# load settings from json file
+with open(SOURCE_DIR / "settings.json", "r") as settings_file:
+    json_settings = json.load(settings_file)
+    EXT_TO_PROCESS = json_settings.get("FILES_TO_PROCESS")
+    EXT_TO_ARCHIVE = json_settings.get("FILES_TO_ARCHIVE")
+
+DATA_DIR = SOURCE_DIR / json_settings.get("TARGET_DIR")
+ARCHIVE_DIR = DATA_DIR / "ARCHIVE"
 WORKING_DIR = DATA_DIR
 
 logging.basicConfig(level=logging.DEBUG,
-                    filename="clean.log",
-                    filemode="a",
+                    filename="logs.log",
+                    filemode="w",
                     format="%(asctime)s - %(levelname)s - %(message)s")
 
 
-def get_json_file(parent_dir, working_file):
-    json_file = parent_dir / f"{working_file.name}.json"
+def get_json_file(working_file):
+    json_file = working_file.parent / f"{working_file.name}.json"
 
+    # File might already be archived (if rerun)
     if not json_file.exists():
-        json_file = DATA_DIR / "json" / json_file.name
+        json_file = ARCHIVE_DIR / "json" / working_file.parts[-2] / json_file.name
 
     return json_file
 
 
 def archive_file(path: Path):
     file_type = path.suffix.strip(".")
-    output_dir = DATA_DIR / file_type
-    output_dir.mkdir(exist_ok=True)
+    output_dir = ARCHIVE_DIR / file_type / path.parts[-2]
+    output_dir.mkdir(exist_ok=True, parents=True)
 
     if path.parent != output_dir:
-        # duplicates are possible across folders and we want to keep all
-        if Path(output_dir / path.name).exists():
-            path.rename(output_dir / f"{path.stem}-{str(datetime.now().timestamp())}{path.suffix}")
-        else:
-            path.rename(output_dir / path.name)
+        path.rename(output_dir / path.name)
         logging.debug(f"{file_type.upper()} file has been archived")
         return 1
 
@@ -66,11 +68,13 @@ def update_metadata(file_path: Path, json_date_time: datetime):
 
     if file_path.suffix.lower() in [".jpg", ".jpeg"]:
         exif_dict: dict = piexif.load(path)
-        logging.debug(exif_dict)
 
         date_time = exif_dict['0th'].get(piexif.ImageIFD.DateTime)
         date_time_original = exif_dict['Exif'].get(piexif.ExifIFD.DateTimeOriginal)
         date_time_digitized = exif_dict['Exif'].get(piexif.ExifIFD.DateTimeDigitized)
+        logging.debug(f"date_time: {date_time}")
+        logging.debug(f"date_time_original: {date_time_original}")
+        logging.debug(f"date_time_digitized: {date_time_digitized}")
 
         if date_time is not None and date_time_original is not None and date_time_digitized is not None:
             date_time = exif_date_to_datetime(date_time)
@@ -98,33 +102,57 @@ def update_metadata(file_path: Path, json_date_time: datetime):
 
 def main():
     # Get all files to process recursively
-    files_to_update = [f for f in WORKING_DIR.glob("**/*") if f.is_file() and f.suffix.lower() in EXT_TO_PROCESS]
+    files_to_process = [f for f in WORKING_DIR.rglob("*") if f.is_file() and f.suffix.lower() in EXT_TO_PROCESS]
 
+    deduplicated_files = 0
     skipped_files = 0
     updated_files = 0
     archived_files = 0
 
-    logging.info(f"{len(files_to_update)} files to process")
+    logging.info(f"{len(files_to_process)} files to process")
+    print(f"{len(files_to_process)} files to process")
 
-    with typer.progressbar(files_to_update) as progress:
+    # Deduplicate files
+    with typer.progressbar(files_to_process, label="Deduplicating files...") as progress:
+        # check if file has a duplicate
+        for file in progress:
+            duplicates = [file]
+            files_to_dedup = files_to_process.copy()
+            for f in files_to_dedup:
+                found = f.parent != file.parent and f.name == file.name
+                if found is True:
+                    duplicates.append(f)
+                    files_to_dedup.remove(f)
+            if len(duplicates) > 1:
+                # keep the file coming from specific albums (not year folders)
+                for dup in duplicates:
+                    if str(dup.parent).find("Photos from") != -1:
+                        dup_json = get_json_file(dup)
+                        archived_files += archive_file(dup_json)
+                        deduplicated_files += archive_file(dup)
+                        files_to_process.remove(dup)
+
+    # Process remaining files
+    with typer.progressbar(files_to_process, label="Processing remaining files...") as progress:
         for f in progress:
             logging.info(f.name)
 
             # archive designated files
             if f.suffix.lower() in EXT_TO_ARCHIVE:
-                archive_file(path=f)
-                logging.debug("File archived")
-                archived_files += 1
+                archived = archive_file(path=f)
+                if archived:
+                    archived_files += 1
+                else:
+                    skipped_files += 1
                 pass
 
             # process valid images and videos
             # get date from google json and save on file if necessary
             else:
-                parent_dir = f.parent
-                json_file = get_json_file(parent_dir=parent_dir, working_file=f)
-
-                photoTakenTime = get_photo_taken_date(json_file)
-                updated = update_metadata(file_path=f, json_date_time=photoTakenTime)
+                # get date from google photos json file and update photo if necessary
+                json_file = get_json_file(working_file=f)
+                photo_taken_date = get_photo_taken_date(json_file)
+                updated = update_metadata(file_path=f, json_date_time=photo_taken_date)
 
                 if updated:
                     updated_files += 1
@@ -133,9 +161,12 @@ def main():
 
                 archived_files += archive_file(path=json_file)
 
+    logging.info(f"{deduplicated_files} deduplicated files")
     logging.info(f"{updated_files} updated files")
     logging.info(f"{skipped_files} skipped files")
     logging.info(f"{archived_files} archived files")
+
+    print(f"{deduplicated_files} deduplicated files, {updated_files} updated files, {skipped_files} skipped files, {archived_files} archived files")
 
 
 if __name__ == "__main__":

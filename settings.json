@@ -1,0 +1,5 @@
+{
+  "TARGET_DIR": "data",
+  "FILES_TO_PROCESS": [".jpg", ".jpeg", ".png", ".mp4", ".mp"],
+  "FILES_TO_ARCHIVE": [".mp"]
+}
