@@ -171,7 +171,6 @@ def main():
                     archived_files += 1
                 else:
                     skipped_files += 1
-                pass
 
             # process valid images and videos
             # get date from google json and save on file if necessary
