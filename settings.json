@@ -1,5 +1,5 @@
 {
-  "TARGET_DIR": "data",
-  "FILES_TO_PROCESS": [".jpg", ".jpeg", ".png", ".mp4", ".mp"],
+  "TARGET_DIR": "",
+  "FILES_TO_UPDATE": [".jpg", ".jpeg", ".png", ".mp4"],
   "FILES_TO_ARCHIVE": [".mp"]
 }

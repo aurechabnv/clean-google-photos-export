@@ -6,23 +6,47 @@ import os
 import piexif
 import typer
 
+logging.basicConfig(level=logging.DEBUG,
+                    filename="logs.log",
+                    filemode="w",
+                    format="%(asctime)s - %(levelname)s - %(message)s")
+
+
+def log_console(log_message: str):
+    logging.info(log_message)
+    typer.echo(log_message)
+
+
+def warn_console(log_message: str):
+    logging.warning(log_message)
+    typer.secho(message=log_message, color=typer.colors.RED)
+
+
 SOURCE_FILE = Path(__file__).resolve()
 SOURCE_DIR = SOURCE_FILE.parent
 
 # load settings from json file
 with open(SOURCE_DIR / "settings.json", "r") as settings_file:
     json_settings = json.load(settings_file)
-    EXT_TO_PROCESS = json_settings.get("FILES_TO_PROCESS")
-    EXT_TO_ARCHIVE = json_settings.get("FILES_TO_ARCHIVE")
 
-DATA_DIR = SOURCE_DIR / json_settings.get("TARGET_DIR")
+# Elements to process include both update and archive
+EXT_TO_ARCHIVE: list = json_settings.get("FILES_TO_ARCHIVE")
+EXT_TO_PROCESS: list = json_settings.get("FILES_TO_UPDATE")
+EXT_TO_PROCESS.extend(EXT_TO_ARCHIVE)
+
+target_dir = json_settings.get("TARGET_DIR")
+if bool(target_dir) and Path(target_dir).exists():
+    log_console(f"Searching in target directory: {target_dir}")
+    DATA_DIR = Path(target_dir)
+else:
+    log_console(f"Searching in default directory")
+    DATA_DIR = SOURCE_DIR / "data"
+
+if not DATA_DIR.exists():
+    warn_console("A target folder must be defined.")
+
 ARCHIVE_DIR = DATA_DIR / "ARCHIVE"
 WORKING_DIR = DATA_DIR
-
-logging.basicConfig(level=logging.DEBUG,
-                    filename="logs.log",
-                    filemode="w",
-                    format="%(asctime)s - %(levelname)s - %(message)s")
 
 
 def get_json_file(working_file):
@@ -104,13 +128,16 @@ def main():
     # Get all files to process recursively
     files_to_process = [f for f in WORKING_DIR.rglob("*") if f.is_file() and f.suffix.lower() in EXT_TO_PROCESS]
 
+    if len(files_to_process) == 0:
+        warn_console("No files to process")
+        return
+
     deduplicated_files = 0
     skipped_files = 0
     updated_files = 0
     archived_files = 0
 
-    logging.info(f"{len(files_to_process)} files to process")
-    print(f"{len(files_to_process)} files to process")
+    log_console(f"{len(files_to_process)} files to process")
 
     # Deduplicate files
     with typer.progressbar(files_to_process, label="Deduplicating files...") as progress:
@@ -161,12 +188,7 @@ def main():
 
                 archived_files += archive_file(path=json_file)
 
-    logging.info(f"{deduplicated_files} deduplicated files")
-    logging.info(f"{updated_files} updated files")
-    logging.info(f"{skipped_files} skipped files")
-    logging.info(f"{archived_files} archived files")
-
-    print(f"{deduplicated_files} deduplicated files, {updated_files} updated files, {skipped_files} skipped files, {archived_files} archived files")
+    log_console(f"{deduplicated_files} deduplicated files, {updated_files} updated files, {skipped_files} skipped files, {archived_files} archived files")
 
 
 if __name__ == "__main__":
