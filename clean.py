@@ -221,14 +221,16 @@ def deduplicate_files(files: List[Path]) -> List[Path]:
                 # add first file in comparison
                 duplicates.append(file)
 
-                # archive the files coming from year folders and their JSON  files
-                for dup in duplicates:
-                    if str(dup.parent).find("Photos from") != -1:
-                        dup_json = get_json_file(dup)
-                        if dup_json.exists():   
-                            trackers["archived_files"] += archive_file(dup_json)
-                            trackers["deduplicated_files"] += archive_file(dup)
-                        files.remove(dup)
+                # archive the files coming from year folders and their JSON files IF ONE FILE REMAIN
+                files_to_archive = [file for file in duplicates if str(file.parent).find("Photos from") != -1]
+                if len(files_to_archive) == (len(duplicates) - 1):
+                    for dup in files_to_archive:
+                        if str(dup.parent).find("Photos from") != -1:
+                            dup_json = get_json_file(dup)
+                            if dup_json.exists():   
+                                trackers["archived_files"] += archive_file(dup_json)
+                                trackers["deduplicated_files"] += archive_file(dup)
+                            files.remove(dup)
     return files
 
 
