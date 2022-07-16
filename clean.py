@@ -204,7 +204,7 @@ def deduplicate_files(files: List[Path]) -> List[Path]:
     """
     with typer.progressbar(files, label="Deduplicating files...") as progress:
         for file in progress:
-            logging.info(f.name)
+            logging.info(file.name)
             duplicates = []
             files_to_dedup = files.copy()
 
