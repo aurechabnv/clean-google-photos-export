@@ -16,7 +16,7 @@ SOURCE_DIR = SOURCE_FILE.parent
 
 # LOGGING
 logging.basicConfig(level=logging.DEBUG,
-                    filename="logs.log",
+                    filename=f"logs-{datetime.now().timestamp()}.log",
                     filemode="w",
                     format="%(asctime)s - %(levelname)s - %(message)s")
 
@@ -48,7 +48,8 @@ with open(SOURCE_DIR / "settings.json", "r") as settings_file:
 
 # File extensions to process must include both update and archive
 EXT_TO_ARCHIVE: list = SETTINGS.get("FILES_TO_ARCHIVE")
-EXT_TO_PROCESS: list = SETTINGS.get("FILES_TO_UPDATE")
+EXT_TO_UPDATE: list = SETTINGS.get("FILES_TO_UPDATE")
+EXT_TO_PROCESS = EXT_TO_UPDATE.copy()
 EXT_TO_PROCESS.extend(EXT_TO_ARCHIVE)
 
 # Processing trackers
@@ -202,7 +203,7 @@ def deduplicate_files(files: List[Path]) -> List[Path]:
     Returns: Deduplicated list of files
 
     """
-    with typer.progressbar(files, label="Deduplicating files...") as progress:
+    with typer.progressbar(files, label="1/3 Deduplicating files...") as progress:
         for file in progress:
             logging.info(file.name)
             duplicates = []
@@ -224,48 +225,61 @@ def deduplicate_files(files: List[Path]) -> List[Path]:
                 for dup in duplicates:
                     if str(dup.parent).find("Photos from") != -1:
                         dup_json = get_json_file(dup)
-                        trackers["archived_files"] += archive_file(dup_json)
-                        trackers["deduplicated_files"] += archive_file(dup)
+                        if dup_json.exists():   
+                            trackers["archived_files"] += archive_file(dup_json)
+                            trackers["deduplicated_files"] += archive_file(dup)
                         files.remove(dup)
     return files
 
 
-def process_files(files):
+def update_files(files):
     """
-    Archive or update files according to their extensions:
-        - extensions in `EXT_TO_ARCHIVE` are archived
-        - other files are processed for date update if current date and JSON date are different
+    Update files according to their extensions:
+        - files are processed for date update if current date and JSON date are different
         - JSON files corresponding to the processed files are archived after processing
     Args:
         files: List of files to process
 
     """
-    with typer.progressbar(files, label="Processing remaining files...") as progress:
+    do_dedup = SETTINGS.get("do_dedup")
+    with typer.progressbar(files, label=f"{'2/3' if do_dedup else '1/2'} Update files...") as progress:
         for f in progress:
             logging.info(f.name)
 
-            # archive designated files
-            if f.suffix.lower() in EXT_TO_ARCHIVE:
-                archived = archive_file(file=f)
-                if archived:
-                    trackers["archived_files"] += 1
-                else:
-                    trackers["skipped_files"] += 1
-
-            # process valid images and videos
-            # get date from google json and save on file if necessary
-            else:
-                # get date from google photos json file and update photo if necessary
-                json_file = get_json_file(working_file=f)
+            # get date from google photos json file and update photo if necessary
+            json_file = get_json_file(working_file=f)
+            if json_file.exists():
                 photo_taken_date = get_photo_taken_date(json_file)
                 updated = update_metadata(file_path=f, json_date_time=photo_taken_date)
+            else:
+                logging.debug("No JSON, skip update")
+                updated = False
 
-                if updated:
-                    trackers["updated_files"] += 1
-                else:
-                    trackers["skipped_files"] += 1
+            if updated:
+                trackers["updated_files"] += 1
+            else:
+                trackers["skipped_files"] += 1
 
-                trackers["archived_files"] += archive_file(file=json_file)
+            trackers["archived_files"] += archive_file(file=json_file)
+
+
+def archive_files(files):
+    """
+    Archive files according to their extensions as defined in `EXT_TO_ARCHIVE` 
+    Args:
+        files: List of files to process
+
+    """
+    do_dedup = SETTINGS.get("do_dedup")
+    with typer.progressbar(files, label=f"{'3/3' if do_dedup else '2/2'} Archive files...") as progress:
+        for f in progress:
+            logging.info(f.name)
+
+            archived = archive_file(file=f)
+            if archived:
+                trackers["archived_files"] += 1
+            else:
+                trackers["skipped_files"] += 1
 
 
 @app.command("run")
@@ -277,6 +291,7 @@ def main(directory: Optional[str] = typer.Argument(SETTINGS.get("DEFAULT_TARGET_
         raise typer.Exit()
 
     SETTINGS["target_dir"] = directory
+    SETTINGS["do_dedup"] = dedup
 
     # Get all files to process recursively
     files_to_process = [f for f in Path(directory).rglob("*") if f.is_file() and f.suffix.lower() in EXT_TO_PROCESS]
@@ -286,14 +301,19 @@ def main(directory: Optional[str] = typer.Argument(SETTINGS.get("DEFAULT_TARGET_
         raise typer.Exit()
     log_console(f"{len(files_to_process)} files to process")
 
-    # Deduplicate files and get new list of files
+    files_to_dedup = [f for f in files_to_process if f.suffix.lower() in EXT_TO_UPDATE]
+    # 1 Deduplicate files and get new list of files
     if dedup:
-        files_to_update = deduplicate_files(files_to_process)
+        deduplicated_files = deduplicate_files(files_to_dedup)
     else:
-        files_to_update = files_to_process
+        deduplicated_files = files_to_dedup
 
-    # Process remaining files
-    process_files(files_to_update)
+    # 2 Update files
+    update_files(deduplicated_files)
+
+    # 3 Archive other files
+    files_to_archive = [f for f in Path(directory).rglob("*") if f.is_file() and f.suffix.lower() in EXT_TO_ARCHIVE]
+    archive_files(files_to_archive)
 
     log_console(f"{trackers['deduplicated_files']} deduplicated files, {trackers['updated_files']} updated files, {trackers['skipped_files']} skipped files, {trackers['archived_files']} archived files")
 

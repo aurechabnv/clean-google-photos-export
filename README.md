@@ -10,8 +10,6 @@ This code:
 * get the proper Photo Taken date from the JSON and saves it on the corresponding file only if necessary
 * moves all used JSON and other tagged file extensions in folders at the root, waiting to be manually deleted (just to be safe)
 
-In the original export, other files are present at the root; they are not concerned by this script.
-
 ## How to install
 Install requirements with pip
 > pip install -r requirements
@@ -26,7 +24,7 @@ Show options:
 Run script for a given folder without deduplication:
 > python clean.py "folder/path" --no-dedup
 
-A log file will be produced in the working directory.
+A log file will be produced in the working directory on each run.
 
 
 ## Custom settings
