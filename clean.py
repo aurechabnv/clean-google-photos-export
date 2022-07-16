@@ -6,6 +6,7 @@ import os
 import piexif
 import typer
 
+# LOGGING
 logging.basicConfig(level=logging.DEBUG,
                     filename="logs.log",
                     filemode="w",
@@ -13,15 +14,26 @@ logging.basicConfig(level=logging.DEBUG,
 
 
 def log_console(log_message: str):
+    """
+    Log a message both to the console and into the logs
+    Args:
+        log_message: message to print
+    """
     logging.info(log_message)
     typer.echo(log_message)
 
 
 def warn_console(log_message: str):
+    """
+    Log a warning message both to the soncole and into the logs
+    Args:
+        log_message: message to print
+    """
     logging.warning(log_message)
     typer.secho(message=log_message, color=typer.colors.RED)
 
 
+# CONSTANTS DEFINITION
 SOURCE_FILE = Path(__file__).resolve()
 SOURCE_DIR = SOURCE_FILE.parent
 
@@ -49,7 +61,15 @@ ARCHIVE_DIR = DATA_DIR / "ARCHIVE"
 WORKING_DIR = DATA_DIR
 
 
-def get_json_file(working_file):
+def get_json_file(working_file: Path) -> Path:
+    """
+    Get the corresponding JSON file of the passed file
+    Args:
+        working_file: Image or video file
+
+    Returns: JSON file
+
+    """
     json_file = working_file.parent / f"{working_file.name}.json"
 
     # File might already be archived (if rerun)
@@ -59,7 +79,15 @@ def get_json_file(working_file):
     return json_file
 
 
-def archive_file(path: Path):
+def archive_file(path: Path) -> bool:
+    """
+    Archive the given file for later manual deletion
+    Args:
+        path: File to be archived
+
+    Returns: True if archived
+
+    """
     file_type = path.suffix.strip(".")
     output_dir = ARCHIVE_DIR / file_type / path.parts[-2]
     output_dir.mkdir(exist_ok=True, parents=True)
@@ -67,25 +95,50 @@ def archive_file(path: Path):
     if path.parent != output_dir:
         path.rename(output_dir / path.name)
         logging.debug(f"{file_type.upper()} file has been archived")
-        return 1
+        return True
 
     logging.debug(f"{file_type.upper()} file already archived")
-    return 0
+    return False
 
 
-def get_photo_taken_date(json_file):
+def get_photo_taken_date(json_file: Path) -> datetime:
+    """
+    Extract the Photo Taken Time date from the passed JSON file
+    Args:
+        json_file: JSON file from which extract info
+
+    Returns: Photo Taken Time date
+
+    """
     with open(json_file, "r") as gfile:
         google_metadata = json.load(gfile)
         photo_taken_time_timestamp = google_metadata['photoTakenTime']['timestamp']
         return datetime.fromtimestamp(int(photo_taken_time_timestamp))
 
 
-def exif_date_to_datetime(exif_date):
+def exif_date_to_datetime(exif_date: bytes) -> datetime:
+    """
+    Convert the exif date to datetime
+    Args:
+        exif_date: date coming from exif
+
+    Returns: Converted datetime
+
+    """
     date_string = str(exif_date).strip('b\'')
     return datetime.strptime(date_string, "%Y:%m:%d %H:%M:%S")
 
 
-def update_metadata(file_path: Path, json_date_time: datetime):
+def update_metadata(file_path: Path, json_date_time: datetime) -> bool:
+    """
+    Update the dates in the file's metadata
+    Args:
+        file_path: File to update
+        json_date_time: Date value to use
+
+    Returns: True if updated
+
+    """
     logging.debug(f"JSON datetime: {json_date_time}")
 
     path = str(file_path)
@@ -147,7 +200,7 @@ def main():
             files_to_dedup = files_to_process.copy()
             for f in files_to_dedup:
                 found = f.parent != file.parent and f.name == file.name
-                if found is True:
+                if found:
                     duplicates.append(f)
                     files_to_dedup.remove(f)
             if len(duplicates) > 1:
