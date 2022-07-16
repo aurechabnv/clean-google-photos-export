@@ -3,7 +3,7 @@ import json
 import logging
 from pathlib import Path
 import os
-from typing import Optional
+from typing import List, Optional
 
 import piexif
 import typer
@@ -193,7 +193,7 @@ def update_metadata(file_path: Path, json_date_time: datetime) -> bool:
     return True
 
 
-def deduplicate_files(files: [Path]) -> [Path]:
+def deduplicate_files(files: List[Path]) -> List[Path]:
     """
     Deduplicate passed files and archive duplicates and their JSON counterparts
     Args:
@@ -204,7 +204,8 @@ def deduplicate_files(files: [Path]) -> [Path]:
     """
     with typer.progressbar(files, label="Deduplicating files...") as progress:
         for file in progress:
-            duplicates = [file]
+            logging.info(f.name)
+            duplicates = []
             files_to_dedup = files.copy()
 
             # check if file has duplicates and set them aside
@@ -213,9 +214,13 @@ def deduplicate_files(files: [Path]) -> [Path]:
                 if found:
                     duplicates.append(f)
                     files_to_dedup.remove(f)
+            logging.info(f"{len(duplicates)} duplicates found")
 
-            # if duplicates are found, archive the files coming from year folders and their JSON  files
-            if len(duplicates) > 1:
+            if len(duplicates) > 0:
+                # add first file in comparison
+                duplicates.append(file)
+
+                # archive the files coming from year folders and their JSON  files
                 for dup in duplicates:
                     if str(dup.parent).find("Photos from") != -1:
                         dup_json = get_json_file(dup)
