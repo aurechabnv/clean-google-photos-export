@@ -10,6 +10,10 @@ import typer
 
 app = typer.Typer()
 
+# Source file constants
+SOURCE_FILE = Path(__file__).resolve()
+SOURCE_DIR = SOURCE_FILE.parent
+
 # LOGGING
 logging.basicConfig(level=logging.DEBUG,
                     filename="logs.log",
@@ -37,33 +41,15 @@ def warn_console(log_message: str):
     typer.secho(message=log_message, fg=typer.colors.RED)
 
 
-# CONSTANTS DEFINITION
-SOURCE_FILE = Path(__file__).resolve()
-SOURCE_DIR = SOURCE_FILE.parent
-
-# load settings from json file
+# Load default settings from json file
 SETTINGS = {}
 with open(SOURCE_DIR / "settings.json", "r") as settings_file:
     SETTINGS = json.load(settings_file)
 
-# Elements to process include both update and archive
+# File extensions to process include both update and archive
 EXT_TO_ARCHIVE: list = SETTINGS.get("FILES_TO_ARCHIVE")
 EXT_TO_PROCESS: list = SETTINGS.get("FILES_TO_UPDATE")
 EXT_TO_PROCESS.extend(EXT_TO_ARCHIVE)
-
-target_dir = SETTINGS.get("DEFAULT_TARGET_DIR")
-if bool(target_dir) and Path(target_dir).exists():
-    log_console(f"Searching in target directory: {target_dir}")
-    WORKING_DIR = Path(target_dir)
-else:
-    log_console(f"Searching in default directory")
-    WORKING_DIR = SOURCE_DIR / "data"
-
-if not WORKING_DIR.exists():
-    warn_console("A target folder must be defined.")
-
-# locate the archive folder in the parent folder of targeted folder
-ARCHIVE_DIR = WORKING_DIR.parent / SETTINGS.get("ARCHIVE_FOLDER_NAME")
 
 # Processing trackers
 trackers = {
@@ -84,7 +70,9 @@ def get_archive_dir(file: Path) -> Path:
 
     """
     if SETTINGS.get("ARCHIVE_FOLDER_NAME") not in file.parts:
-        archive_dir = ARCHIVE_DIR / file.parent.relative_to(WORKING_DIR)
+        # Locate the archive folder in the parent folder of targeted folder
+        target_dir = Path(SETTINGS.get("target_dir"))
+        archive_dir = target_dir.parent / SETTINGS.get("ARCHIVE_FOLDER_NAME") / file.parent.relative_to(target_dir)
     else:
         archive_dir = file.parent
     return archive_dir
@@ -273,10 +261,18 @@ def process_files(files):
 
 
 @app.command("run")
-def main(directory: Optional[str] = typer.Argument(str(WORKING_DIR), help="Dossier dans lequel chercher"),
+def main(directory: Optional[str] = typer.Argument(SETTINGS.get("DEFAULT_TARGET_DIR"), help="Dossier dans lequel chercher"),
          dedup: bool = typer.Option(SETTINGS.get("DEDUPLICATE_FILES"), help="Trouver et archiver les doublons")):
+
+    if bool(directory) is False or not Path(directory).exists():
+        warn_console("A target folder must be defined in the JSON settings or as an argument.")
+        raise typer.Exit()
+
+    SETTINGS["target_dir"] = directory
+    directory = Path(directory)
+
     # Get all files to process recursively
-    files_to_process = [f for f in Path(directory).rglob("*") if f.is_file() and f.suffix.lower() in EXT_TO_PROCESS]
+    files_to_process = [f for f in directory.rglob("*") if f.is_file() and f.suffix.lower() in EXT_TO_PROCESS]
 
     if len(files_to_process) == 0:
         warn_console("No files to process")
