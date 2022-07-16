@@ -1,6 +1,7 @@
 {
-  "TARGET_DIR": "",
+  "DEFAULT_TARGET_DIR": "",
   "FILES_TO_UPDATE": [".jpg", ".jpeg", ".png", ".mp4"],
   "FILES_TO_ARCHIVE": [".mp"],
-  "DEDUPLICATE_FILES": true
+  "DEDUPLICATE_FILES": true,
+  "ARCHIVE_FOLDER_NAME": "gp-files-cleaning-archive"
 }

@@ -12,20 +12,27 @@ This code:
 
 In the original export, other files are present at the root; they are not concerned by this script.
 
-## How to install and run
+## How to install
 Install requirements with pip
 > pip install -r requirements
 
-
-Run the python file
+## How to run
+Run script on defaults:
 > python clean.py
+
+Show options:
+> python clean.py --help
+
+Run script for a given folder without deduplication:
+> python clean.py "folder/path" --no-dedup
 
 A log file will be produced in the working directory.
 
 
 ## Custom settings
-Three settings can be updated in the JSON file `settings.json`:
-* `TARGET_DIR`: specify which directory should be searched and cleansed; if empty, searches a "data" folder in the working directory
+Three settings can be updated directly into the JSON file `settings.json`:
+* `DEFAULT_TARGET_DIR`: specify which default directory should be searched and cleansed; if empty, default is a "data" folder in the working directory
 * `DEDUPLICATE_FILES`: defaulted to `true`; set to `false` to skip file deduplication
 * `FILES_TO_UPDATE`: list of extensions which will be updated 
 * `FILES_TO_ARCHIVE`: list of extensions which will be removed (/!\ JSON files are treated along with their photo/video counterpart and should NOT be added here)
+* `ARCHIVE_FOLDER_NAME`: name of the archive folder to be generated

@@ -3,8 +3,12 @@ import json
 import logging
 from pathlib import Path
 import os
+from typing import Optional
+
 import piexif
 import typer
+
+app = typer.Typer()
 
 # LOGGING
 logging.basicConfig(level=logging.DEBUG,
@@ -30,7 +34,7 @@ def warn_console(log_message: str):
         log_message: message to print
     """
     logging.warning(log_message)
-    typer.secho(message=log_message, color=typer.colors.RED)
+    typer.secho(message=log_message, fg=typer.colors.RED)
 
 
 # CONSTANTS DEFINITION
@@ -47,19 +51,19 @@ EXT_TO_ARCHIVE: list = SETTINGS.get("FILES_TO_ARCHIVE")
 EXT_TO_PROCESS: list = SETTINGS.get("FILES_TO_UPDATE")
 EXT_TO_PROCESS.extend(EXT_TO_ARCHIVE)
 
-target_dir = SETTINGS.get("TARGET_DIR")
+target_dir = SETTINGS.get("DEFAULT_TARGET_DIR")
 if bool(target_dir) and Path(target_dir).exists():
     log_console(f"Searching in target directory: {target_dir}")
-    DATA_DIR = Path(target_dir)
+    WORKING_DIR = Path(target_dir)
 else:
     log_console(f"Searching in default directory")
-    DATA_DIR = SOURCE_DIR / "data"
+    WORKING_DIR = SOURCE_DIR / "data"
 
-if not DATA_DIR.exists():
+if not WORKING_DIR.exists():
     warn_console("A target folder must be defined.")
 
-ARCHIVE_DIR = DATA_DIR / "ARCHIVE"
-WORKING_DIR = DATA_DIR
+# locate the archive folder in the parent folder of targeted folder
+ARCHIVE_DIR = WORKING_DIR.parent / SETTINGS.get("ARCHIVE_FOLDER_NAME")
 
 # Processing trackers
 trackers = {
@@ -79,7 +83,11 @@ def get_archive_dir(file: Path) -> Path:
     Returns: Archive folder path
 
     """
-    return ARCHIVE_DIR / file.parent.relative_to(WORKING_DIR)
+    if SETTINGS.get("ARCHIVE_FOLDER_NAME") not in file.parts:
+        archive_dir = ARCHIVE_DIR / file.parent.relative_to(WORKING_DIR)
+    else:
+        archive_dir = file.parent
+    return archive_dir
 
 
 def get_json_file(working_file: Path) -> Path:
@@ -92,7 +100,6 @@ def get_json_file(working_file: Path) -> Path:
 
     """
     json_file = working_file.parent / f"{working_file.name}.json"
-
     # File might already be archived (if rerun)
     if not json_file.exists():
         json_file = get_archive_dir(working_file) / json_file.name
@@ -265,17 +272,19 @@ def process_files(files):
                 trackers["archived_files"] += archive_file(file=json_file)
 
 
-def main():
+@app.command("run")
+def main(directory: Optional[str] = typer.Argument(str(WORKING_DIR), help="Dossier dans lequel chercher"),
+         dedup: bool = typer.Option(SETTINGS.get("DEDUPLICATE_FILES"), help="Trouver et archiver les doublons")):
     # Get all files to process recursively
-    files_to_process = [f for f in WORKING_DIR.rglob("*") if f.is_file() and f.suffix.lower() in EXT_TO_PROCESS]
+    files_to_process = [f for f in Path(directory).rglob("*") if f.is_file() and f.suffix.lower() in EXT_TO_PROCESS]
 
     if len(files_to_process) == 0:
         warn_console("No files to process")
-        return
+        raise typer.Exit()
     log_console(f"{len(files_to_process)} files to process")
 
     # Deduplicate files and get new list of files
-    if SETTINGS.get("DEDUPLICATE_FILES") is True:
+    if dedup:
         files_to_update = deduplicate_files(files_to_process)
     else:
         files_to_update = files_to_process
@@ -287,4 +296,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    app()
