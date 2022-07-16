@@ -70,6 +70,18 @@ trackers = {
 }
 
 
+def get_archive_dir(file: Path) -> Path:
+    """
+    Get the archive folder path corresponding to the passed file
+    Args:
+        file: File from which compute the archive path
+
+    Returns: Archive folder path
+
+    """
+    return ARCHIVE_DIR / file.parent.relative_to(WORKING_DIR)
+
+
 def get_json_file(working_file: Path) -> Path:
     """
     Get the corresponding JSON file of the passed file
@@ -83,30 +95,29 @@ def get_json_file(working_file: Path) -> Path:
 
     # File might already be archived (if rerun)
     if not json_file.exists():
-        json_file = ARCHIVE_DIR / "json" / working_file.parts[-2] / json_file.name
+        json_file = get_archive_dir(working_file) / json_file.name
 
     return json_file
 
 
-def archive_file(path: Path) -> bool:
+def archive_file(file: Path) -> bool:
     """
     Archive the given file for later manual deletion
     Args:
-        path: File to be archived
+        file: File to be archived
 
     Returns: True if archived
 
     """
-    file_type = path.suffix.strip(".")
-    output_dir = ARCHIVE_DIR / file_type / path.parts[-2]
+    output_dir = get_archive_dir(file)
     output_dir.mkdir(exist_ok=True, parents=True)
 
-    if path.parent != output_dir:
-        path.rename(output_dir / path.name)
-        logging.debug(f"{file_type.upper()} file has been archived")
+    if file.parent != output_dir:
+        file.rename(output_dir / file.name)
+        logging.debug(f"{file.name} has been archived")
         return True
 
-    logging.debug(f"{file_type.upper()} file already archived")
+    logging.debug(f"{file.name} already archived")
     return False
 
 
@@ -232,7 +243,7 @@ def process_files(files):
 
             # archive designated files
             if f.suffix.lower() in EXT_TO_ARCHIVE:
-                archived = archive_file(path=f)
+                archived = archive_file(file=f)
                 if archived:
                     trackers["archived_files"] += 1
                 else:
@@ -251,7 +262,7 @@ def process_files(files):
                 else:
                     trackers["skipped_files"] += 1
 
-                trackers["archived_files"] += archive_file(path=json_file)
+                trackers["archived_files"] += archive_file(file=json_file)
 
 
 def main():
