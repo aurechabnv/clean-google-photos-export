@@ -46,7 +46,7 @@ SETTINGS = {}
 with open(SOURCE_DIR / "settings.json", "r") as settings_file:
     SETTINGS = json.load(settings_file)
 
-# File extensions to process include both update and archive
+# File extensions to process must include both update and archive
 EXT_TO_ARCHIVE: list = SETTINGS.get("FILES_TO_ARCHIVE")
 EXT_TO_PROCESS: list = SETTINGS.get("FILES_TO_UPDATE")
 EXT_TO_PROCESS.extend(EXT_TO_ARCHIVE)
@@ -69,10 +69,11 @@ def get_archive_dir(file: Path) -> Path:
     Returns: Archive folder path
 
     """
-    if SETTINGS.get("ARCHIVE_FOLDER_NAME") not in file.parts:
+    archive_folder_name = SETTINGS.get("ARCHIVE_FOLDER_NAME")
+    if archive_folder_name not in file.parts:
         # Locate the archive folder in the parent folder of targeted folder
         target_dir = Path(SETTINGS.get("target_dir"))
-        archive_dir = target_dir.parent / SETTINGS.get("ARCHIVE_FOLDER_NAME") / file.parent.relative_to(target_dir)
+        archive_dir = target_dir.parent / archive_folder_name / file.parent.relative_to(target_dir)
     else:
         archive_dir = file.parent
     return archive_dir
@@ -199,6 +200,7 @@ def deduplicate_files(files: [Path]) -> [Path]:
         files: List of files
 
     Returns: Deduplicated list of files
+
     """
     with typer.progressbar(files, label="Deduplicating files...") as progress:
         for file in progress:
@@ -231,6 +233,7 @@ def process_files(files):
         - JSON files corresponding to the processed files are archived after processing
     Args:
         files: List of files to process
+
     """
     with typer.progressbar(files, label="Processing remaining files...") as progress:
         for f in progress:
@@ -261,18 +264,17 @@ def process_files(files):
 
 
 @app.command("run")
-def main(directory: Optional[str] = typer.Argument(SETTINGS.get("DEFAULT_TARGET_DIR"), help="Dossier dans lequel chercher"),
-         dedup: bool = typer.Option(SETTINGS.get("DEDUPLICATE_FILES"), help="Trouver et archiver les doublons")):
+def main(directory: Optional[str] = typer.Argument(SETTINGS.get("DEFAULT_TARGET_DIR"), help="Folder to be deep-searched"),
+         dedup: bool = typer.Option(SETTINGS.get("DEDUPLICATE_FILES"), help="Find and archive duplicates")):
 
     if bool(directory) is False or not Path(directory).exists():
         warn_console("A target folder must be defined in the JSON settings or as an argument.")
         raise typer.Exit()
 
     SETTINGS["target_dir"] = directory
-    directory = Path(directory)
 
     # Get all files to process recursively
-    files_to_process = [f for f in directory.rglob("*") if f.is_file() and f.suffix.lower() in EXT_TO_PROCESS]
+    files_to_process = [f for f in Path(directory).rglob("*") if f.is_file() and f.suffix.lower() in EXT_TO_PROCESS]
 
     if len(files_to_process) == 0:
         warn_console("No files to process")
