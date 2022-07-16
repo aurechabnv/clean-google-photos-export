@@ -60,6 +60,14 @@ if not DATA_DIR.exists():
 ARCHIVE_DIR = DATA_DIR / "ARCHIVE"
 WORKING_DIR = DATA_DIR
 
+# Processing trackers
+trackers = {
+    "deduplicated_files": 0,
+    "skipped_files": 0,
+    "updated_files": 0,
+    "archived_files": 0,
+}
+
 
 def get_json_file(working_file: Path) -> Path:
     """
@@ -177,43 +185,47 @@ def update_metadata(file_path: Path, json_date_time: datetime) -> bool:
     return True
 
 
-def main():
-    # Get all files to process recursively
-    files_to_process = [f for f in WORKING_DIR.rglob("*") if f.is_file() and f.suffix.lower() in EXT_TO_PROCESS]
+def deduplicate_files(files: [Path]) -> [Path]:
+    """
+    Deduplicate passed files and archive duplicates and their JSON counterparts
+    Args:
+        files: List of files
 
-    if len(files_to_process) == 0:
-        warn_console("No files to process")
-        return
-
-    deduplicated_files = 0
-    skipped_files = 0
-    updated_files = 0
-    archived_files = 0
-
-    log_console(f"{len(files_to_process)} files to process")
-
-    # Deduplicate files
-    with typer.progressbar(files_to_process, label="Deduplicating files...") as progress:
-        # check if file has a duplicate
+    Returns: Deduplicated list of files
+    """
+    with typer.progressbar(files, label="Deduplicating files...") as progress:
         for file in progress:
             duplicates = [file]
-            files_to_dedup = files_to_process.copy()
+            files_to_dedup = files.copy()
+
+            # check if file has duplicates and set them aside
             for f in files_to_dedup:
                 found = f.parent != file.parent and f.name == file.name
                 if found:
                     duplicates.append(f)
                     files_to_dedup.remove(f)
+
+            # if duplicates are found, archive the files coming from year folders and their JSON  files
             if len(duplicates) > 1:
-                # keep the file coming from specific albums (not year folders)
                 for dup in duplicates:
                     if str(dup.parent).find("Photos from") != -1:
                         dup_json = get_json_file(dup)
-                        archived_files += archive_file(dup_json)
-                        deduplicated_files += archive_file(dup)
-                        files_to_process.remove(dup)
+                        trackers["archived_files"] += archive_file(dup_json)
+                        trackers["deduplicated_files"] += archive_file(dup)
+                        files.remove(dup)
+    return files
 
-    # Process remaining files
-    with typer.progressbar(files_to_process, label="Processing remaining files...") as progress:
+
+def process_files(files):
+    """
+    Archive or update files according to their extensions:
+        - extensions in `EXT_TO_ARCHIVE` are archived
+        - other files are processed for date update if current date and JSON date are different
+        - JSON files corresponding to the processed files are archived after processing
+    Args:
+        files: List of files to process
+    """
+    with typer.progressbar(files, label="Processing remaining files...") as progress:
         for f in progress:
             logging.info(f.name)
 
@@ -221,9 +233,9 @@ def main():
             if f.suffix.lower() in EXT_TO_ARCHIVE:
                 archived = archive_file(path=f)
                 if archived:
-                    archived_files += 1
+                    trackers["archived_files"] += 1
                 else:
-                    skipped_files += 1
+                    trackers["skipped_files"] += 1
 
             # process valid images and videos
             # get date from google json and save on file if necessary
@@ -234,13 +246,29 @@ def main():
                 updated = update_metadata(file_path=f, json_date_time=photo_taken_date)
 
                 if updated:
-                    updated_files += 1
+                    trackers["updated_files"] += 1
                 else:
-                    skipped_files += 1
+                    trackers["skipped_files"] += 1
 
-                archived_files += archive_file(path=json_file)
+                trackers["archived_files"] += archive_file(path=json_file)
 
-    log_console(f"{deduplicated_files} deduplicated files, {updated_files} updated files, {skipped_files} skipped files, {archived_files} archived files")
+
+def main():
+    # Get all files to process recursively
+    files_to_process = [f for f in WORKING_DIR.rglob("*") if f.is_file() and f.suffix.lower() in EXT_TO_PROCESS]
+
+    if len(files_to_process) == 0:
+        warn_console("No files to process")
+        return
+    log_console(f"{len(files_to_process)} files to process")
+
+    # Deduplicate files and get new list of files
+    files_to_update = deduplicate_files(files_to_process)
+
+    # Process remaining files
+    process_files(files_to_update)
+
+    log_console(f"{trackers['deduplicated_files']} deduplicated files, {trackers['updated_files']} updated files, {trackers['skipped_files']} skipped files, {trackers['archived_files']} archived files")
 
 
 if __name__ == "__main__":
