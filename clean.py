@@ -16,7 +16,7 @@ SOURCE_DIR = SOURCE_FILE.parent
 
 # LOGGING
 logging.basicConfig(level=logging.DEBUG,
-                    filename=f"logs-{datetime.now().timestamp()}.log",
+                    filename=f"logs/logs-{datetime.now().timestamp()}.log",
                     filemode="w",
                     format="%(asctime)s - %(levelname)s - %(message)s")
 
