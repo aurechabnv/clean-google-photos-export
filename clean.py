@@ -206,31 +206,28 @@ def deduplicate_files(files: List[Path]) -> List[Path]:
     with typer.progressbar(files, label="1/3 Deduplicating files...") as progress:
         for file in progress:
             logging.info(file.name)
-            duplicates = []
-            files_to_dedup = files.copy()
 
             # check if file has duplicates and set them aside
-            for f in files_to_dedup:
-                found = f.parent != file.parent and f.name == file.name
-                if found:
-                    duplicates.append(f)
-                    files_to_dedup.remove(f)
-            logging.info(f"{len(duplicates)} duplicates found")
+            files_with_same_name = [f for f in files if f.name == file.name]
 
-            if len(duplicates) > 0:
-                # add first file in comparison
-                duplicates.append(file)
+            total_duplicates = len(files_with_same_name) - 1
+            logging.info(f"{total_duplicates} duplicates found")
 
+            if total_duplicates > 0:
                 # archive the files coming from year folders and their JSON files IF ONE FILE REMAIN
-                files_to_archive = [file for file in duplicates if str(file.parent).find("Photos from") != -1]
-                if len(files_to_archive) == (len(duplicates) - 1):
-                    for dup in files_to_archive:
-                        if str(dup.parent).find("Photos from") != -1:
-                            dup_json = get_json_file(dup)
-                            if dup_json.exists():   
-                                trackers["archived_files"] += archive_file(dup_json)
-                                trackers["deduplicated_files"] += archive_file(dup)
-                            files.remove(dup)
+                duplicates = [file for file in files_with_same_name if str(file.parent).find("Photos from") != -1]
+                logging.debug(duplicates)
+
+                if len(duplicates) == total_duplicates:
+                    for dup in duplicates:
+                        trackers["deduplicated_files"] += archive_file(dup)
+
+                        # remove JSON counterpart as well
+                        dup_json = get_json_file(dup)
+                        if dup_json.exists():   
+                            trackers["archived_files"] += archive_file(dup_json)
+                        
+                        files.remove(dup)
     return files
 
 
