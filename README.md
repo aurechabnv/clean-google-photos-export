@@ -26,5 +26,6 @@ A log file will be produced in the working directory.
 ## Custom settings
 Three settings can be updated in the JSON file `settings.json`:
 * `TARGET_DIR`: specify which directory should be searched and cleansed; if empty, searches a "data" folder in the working directory
+* `DEDUPLICATE_FILES`: defaulted to `true`; set to `false` to skip file deduplication
 * `FILES_TO_UPDATE`: list of extensions which will be updated 
 * `FILES_TO_ARCHIVE`: list of extensions which will be removed (/!\ JSON files are treated along with their photo/video counterpart and should NOT be added here)

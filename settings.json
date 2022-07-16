@@ -1,5 +1,6 @@
 {
   "TARGET_DIR": "",
   "FILES_TO_UPDATE": [".jpg", ".jpeg", ".png", ".mp4"],
-  "FILES_TO_ARCHIVE": [".mp"]
+  "FILES_TO_ARCHIVE": [".mp"],
+  "DEDUPLICATE_FILES": true
 }

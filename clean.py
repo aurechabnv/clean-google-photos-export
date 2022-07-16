@@ -38,15 +38,16 @@ SOURCE_FILE = Path(__file__).resolve()
 SOURCE_DIR = SOURCE_FILE.parent
 
 # load settings from json file
+SETTINGS = {}
 with open(SOURCE_DIR / "settings.json", "r") as settings_file:
-    json_settings = json.load(settings_file)
+    SETTINGS = json.load(settings_file)
 
 # Elements to process include both update and archive
-EXT_TO_ARCHIVE: list = json_settings.get("FILES_TO_ARCHIVE")
-EXT_TO_PROCESS: list = json_settings.get("FILES_TO_UPDATE")
+EXT_TO_ARCHIVE: list = SETTINGS.get("FILES_TO_ARCHIVE")
+EXT_TO_PROCESS: list = SETTINGS.get("FILES_TO_UPDATE")
 EXT_TO_PROCESS.extend(EXT_TO_ARCHIVE)
 
-target_dir = json_settings.get("TARGET_DIR")
+target_dir = SETTINGS.get("TARGET_DIR")
 if bool(target_dir) and Path(target_dir).exists():
     log_console(f"Searching in target directory: {target_dir}")
     DATA_DIR = Path(target_dir)
@@ -263,7 +264,10 @@ def main():
     log_console(f"{len(files_to_process)} files to process")
 
     # Deduplicate files and get new list of files
-    files_to_update = deduplicate_files(files_to_process)
+    if SETTINGS.get("DEDUPLICATE_FILES") is True:
+        files_to_update = deduplicate_files(files_to_process)
+    else:
+        files_to_update = files_to_process
 
     # Process remaining files
     process_files(files_to_update)
