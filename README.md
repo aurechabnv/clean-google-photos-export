@@ -28,9 +28,11 @@ A log file will be produced in the working directory on each run.
 
 
 ## Custom settings
-Three settings can be updated directly into the JSON file `settings.json`:
+Default settings can be updated directly into the JSON file `settings.json`:
 * `DEFAULT_TARGET_DIR`: default directory to be searched and cleansed
 * `DEDUPLICATE_FILES`: defaulted to `true`; set to `false` to skip file deduplication
+* `UPDATE_FILES`: defaulted to `true`; set to `false` to skip file update
+* `ARCHIVE_FILES`: defaulted to `true`; set to `false` to skip file archiving
 * `FILES_TO_UPDATE`: list of extensions which will be updated 
 * `FILES_TO_ARCHIVE`: list of extensions which will be removed (/!\ JSON files are treated along with their photo/video counterpart and should NOT be added here)
 * `ARCHIVE_FOLDER_NAME`: name of the archive folder to be generated
