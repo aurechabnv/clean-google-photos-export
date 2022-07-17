@@ -8,6 +8,8 @@ from typing import List, Optional
 import piexif
 import typer
 
+from stepper import Stepper
+
 app = typer.Typer()
 
 # Source file constants
@@ -52,6 +54,7 @@ EXT_TO_PROCESS = EXT_TO_UPDATE.copy()
 EXT_TO_PROCESS.extend(EXT_TO_ARCHIVE)
 
 # Processing trackers
+stepper = Stepper()
 trackers = {
     "deduplicated_files": 0,
     "skipped_files": 0,
@@ -202,7 +205,7 @@ def deduplicate_files(files: List[Path]) -> List[Path]:
     Returns: Deduplicated list of files
 
     """
-    with typer.progressbar(files, label="1/3 Deduplicating files...") as progress:
+    with typer.progressbar(files, label=f"{stepper.show_progression()} Deduplicating files...") as progress:
         for file in progress:
             logging.info(file.name)
 
@@ -239,8 +242,7 @@ def update_files(files):
         files: List of files to process
 
     """
-    do_dedup = SETTINGS.get("do_dedup")
-    with typer.progressbar(files, label=f"{'2/3' if do_dedup else '1/2'} Update files...") as progress:
+    with typer.progressbar(files, label=f"{stepper.show_progression()} Update files...") as progress:
         for f in progress:
             logging.info(f.name)
 
@@ -267,8 +269,7 @@ def archive_files(files):
         files: List of files to process
 
     """
-    do_dedup = SETTINGS.get("do_dedup")
-    with typer.progressbar(files, label=f"{'3/3' if do_dedup else '2/2'} Archive files...") as progress:
+    with typer.progressbar(files, label=f"{stepper.show_progression()} Archive files...") as progress:
         for f in progress:
             logging.info(f.name)
 
@@ -290,7 +291,7 @@ def main(directory: Optional[str] = typer.Argument(SETTINGS.get("DEFAULT_TARGET_
         raise typer.Exit()
 
     SETTINGS["target_dir"] = directory
-    SETTINGS["do_dedup"] = dedup
+    stepper.total_steps = dedup + update + archive
 
     # Get all files to process recursively
     files_to_process = [f for f in Path(directory).rglob("*") if f.is_file() and f.suffix.lower() in EXT_TO_PROCESS]
