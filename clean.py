@@ -127,17 +127,17 @@ def exif_date_to_datetime(exif_date: bytes) -> datetime:
     return datetime.strptime(date_string, "%Y:%m:%d %H:%M:%S")
 
 
-def update_metadata(file_path: Path, json_date_time: datetime) -> bool:
+def update_metadata(file_path: Path, new_date: datetime) -> bool:
     """
     Update the dates in the file's metadata
     Args:
         file_path: File to update
-        json_date_time: Date value to use
+        new_date: Date value to use
 
     Returns: True if updated
 
     """
-    logging.debug(f"JSON datetime: {json_date_time}")
+    logging.debug(f"JSON datetime: {new_date}")
 
     path = str(file_path)
 
@@ -151,18 +151,20 @@ def update_metadata(file_path: Path, json_date_time: datetime) -> bool:
         logging.debug(f"date_time_original: {date_time_original}")
         logging.debug(f"date_time_digitized: {date_time_digitized}")
 
-        if date_time is not None and date_time_original is not None and date_time_digitized is not None:
+        if date_time and date_time_original and date_time_digitized:
             date_time = exif_date_to_datetime(date_time)
             date_time_original = exif_date_to_datetime(date_time_original)
             date_time_digitized = exif_date_to_datetime(date_time_digitized)
 
             logging.debug(f"Original datetime: {date_time_original}")
 
-            if date_time.date() == json_date_time.date() and date_time_original.date() == json_date_time.date() and date_time_digitized.date() == json_date_time.date():
+            if all(new_date.date() == date for date in (date_time.date(),
+                                                        date_time_original.date(),
+                                                        date_time_digitized.date())):
                 logging.debug("Skip update")
                 return False
 
-        json_date_time_str = json_date_time.strftime("%Y:%m:%d %H:%M:%S")
+        json_date_time_str = new_date.strftime("%Y:%m:%d %H:%M:%S")
 
         exif_dict['0th'][piexif.ImageIFD.DateTime] = json_date_time_str
         exif_dict['Exif'][piexif.ExifIFD.DateTimeOriginal] = json_date_time_str
@@ -171,7 +173,7 @@ def update_metadata(file_path: Path, json_date_time: datetime) -> bool:
         exif_bytes = piexif.dump(exif_dict)
         piexif.insert(exif_bytes, path)
 
-    os.utime(path, (datetime.timestamp(json_date_time), datetime.timestamp(json_date_time)))
+    os.utime(path, (datetime.timestamp(new_date), datetime.timestamp(new_date)))
     return True
 
 
@@ -229,7 +231,7 @@ def update_files(files):
             json_file = get_json_file(working_file=f)
             if json_file.exists():
                 photo_taken_date = get_photo_taken_date(json_file)
-                updated = update_metadata(file_path=f, json_date_time=photo_taken_date)
+                updated = update_metadata(file_path=f, new_date=photo_taken_date)
                 trackers["archived_files"] += archive_file(file=json_file)
             else:
                 logging.debug("No JSON, skip update")
@@ -296,8 +298,15 @@ def main(directory: Optional[str] = typer.Argument(SETTINGS.get("DEFAULT_TARGET_
         files_to_archive = [f for f in Path(directory).rglob("*") if f.is_file() and f.suffix.lower() in EXT_TO_ARCHIVE]
         archive_files(files_to_archive)
 
-    log_console(
-        f"{trackers['deduplicated_files']} deduplicated files, {trackers['updated_files']} updated files, {trackers['skipped_files']} skipped files, {trackers['archived_files']} archived files")
+    # Print execution trackers
+    if dedup:
+        log_console(f"{trackers['deduplicated_files']} deduplicated files")
+    if update:
+        log_console(f"{trackers['updated_files']} updated files")
+    if update or archive:
+        log_console(f"{trackers['skipped_files']} skipped files")
+    if archive or dedup or update:
+        log_console(f"{trackers['archived_files']} archived files")
 
 
 if __name__ == "__main__":
