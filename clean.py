@@ -284,7 +284,7 @@ def archive_files(files):
 def main(directory: Optional[str] = typer.Argument(SETTINGS.get("DEFAULT_TARGET_DIR"), help="Folder to be deep-searched"),
          dedup: bool = typer.Option(SETTINGS.get("DEDUPLICATE_FILES"), help="Find and archive duplicates")):
 
-    if bool(directory) is False or not Path(directory).exists():
+    if not directory or not Path(directory).exists():
         warn_console("A target folder must be defined in the JSON settings or as an argument.")
         raise typer.Exit()
 
