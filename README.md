@@ -34,5 +34,5 @@ Default settings can be updated directly into the JSON file `settings.json`:
 * `UPDATE_FILES`: defaulted to `true`; set to `false` to skip file update
 * `ARCHIVE_FILES`: defaulted to `true`; set to `false` to skip file archiving
 * `FILES_TO_UPDATE`: list of extensions which will be updated 
-* `FILES_TO_ARCHIVE`: list of extensions which will be removed (/!\ JSON files are treated along with their photo/video counterpart and should NOT be added here)
+* `FILES_TO_ARCHIVE`: list of extensions which will be removed
 * `ARCHIVE_FOLDER_NAME`: name of the archive folder to be generated
