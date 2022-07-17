@@ -8,7 +8,7 @@ from typing import List, Optional
 import piexif
 import typer
 
-from stepper import Stepper
+from utils import Stepper, log_console, warn_console
 
 app = typer.Typer()
 
@@ -21,27 +21,6 @@ logging.basicConfig(level=logging.DEBUG,
                     filename=f"logs/logs-{datetime.now().timestamp()}.log",
                     filemode="w",
                     format="%(asctime)s - %(levelname)s - %(message)s")
-
-
-def log_console(log_message: str):
-    """
-    Log a message both to the console and into the logs
-    Args:
-        log_message: message to print
-    """
-    logging.info(log_message)
-    typer.echo(log_message)
-
-
-def warn_console(log_message: str):
-    """
-    Log a warning message both to the soncole and into the logs
-    Args:
-        log_message: message to print
-    """
-    logging.warning(log_message)
-    typer.secho(message=log_message, fg=typer.colors.RED)
-
 
 # Load default settings from json file
 with open(SOURCE_DIR / "settings.json", "r") as settings_file:
