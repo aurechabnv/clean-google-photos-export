@@ -250,6 +250,7 @@ def update_files(files):
             if json_file.exists():
                 photo_taken_date = get_photo_taken_date(json_file)
                 updated = update_metadata(file_path=f, json_date_time=photo_taken_date)
+                trackers["archived_files"] += archive_file(file=json_file)
             else:
                 logging.debug("No JSON, skip update")
                 updated = False
@@ -258,8 +259,6 @@ def update_files(files):
                 trackers["updated_files"] += 1
             else:
                 trackers["skipped_files"] += 1
-
-            trackers["archived_files"] += archive_file(file=json_file)
 
 
 def archive_files(files):
