@@ -42,7 +42,6 @@ def warn_console(log_message: str):
 
 
 # Load default settings from json file
-SETTINGS = {}
 with open(SOURCE_DIR / "settings.json", "r") as settings_file:
     SETTINGS = json.load(settings_file)
 
