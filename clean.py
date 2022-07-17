@@ -299,8 +299,8 @@ def main(directory: Optional[str] = typer.Argument(SETTINGS.get("DEFAULT_TARGET_
         raise typer.Exit()
     log_console(f"{len(files_to_process)} files to process")
 
-    files_to_dedup = [f for f in files_to_process if f.suffix.lower() in EXT_TO_UPDATE]
     # 1 Deduplicate files and get new list of files
+    files_to_dedup = [f for f in files_to_process if f.suffix.lower() in EXT_TO_UPDATE]
     if dedup:
         deduplicated_files = deduplicate_files(files_to_dedup)
     else:
