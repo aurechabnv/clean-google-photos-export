@@ -223,9 +223,9 @@ def deduplicate_files(files: List[Path]) -> List[Path]:
 
                         # remove JSON counterpart as well
                         dup_json = get_json_file(dup)
-                        if dup_json.exists():   
+                        if dup_json.exists():
                             trackers["archived_files"] += archive_file(dup_json)
-                        
+
                         files.remove(dup)
     return files
 
@@ -280,9 +280,11 @@ def archive_files(files):
 
 
 @app.command("run")
-def main(directory: Optional[str] = typer.Argument(SETTINGS.get("DEFAULT_TARGET_DIR"), help="Folder to be deep-searched"),
-         dedup: bool = typer.Option(SETTINGS.get("DEDUPLICATE_FILES"), help="Find and archive duplicates")):
-
+def main(directory: Optional[str] = typer.Argument(SETTINGS.get("DEFAULT_TARGET_DIR"),
+                                                   help="Folder to be deep-searched"),
+         dedup: bool = typer.Option(SETTINGS.get("DEDUPLICATE_FILES"), help="Find and archive duplicates"),
+         update: bool = typer.Option(SETTINGS.get("UPDATE_FILES"), help="Update file dates"),
+         archive: bool = typer.Option(SETTINGS.get("ARCHIVE_FILES"), help="Archive useless files")):
     if not directory or not Path(directory).exists():
         warn_console("A target folder must be defined in the JSON settings or as an argument.")
         raise typer.Exit()
@@ -306,13 +308,16 @@ def main(directory: Optional[str] = typer.Argument(SETTINGS.get("DEFAULT_TARGET_
         deduplicated_files = files_to_dedup
 
     # 2 Update files
-    update_files(deduplicated_files)
+    if update:
+        update_files(deduplicated_files)
 
     # 3 Archive other files
-    files_to_archive = [f for f in Path(directory).rglob("*") if f.is_file() and f.suffix.lower() in EXT_TO_ARCHIVE]
-    archive_files(files_to_archive)
+    if archive:
+        files_to_archive = [f for f in Path(directory).rglob("*") if f.is_file() and f.suffix.lower() in EXT_TO_ARCHIVE]
+        archive_files(files_to_archive)
 
-    log_console(f"{trackers['deduplicated_files']} deduplicated files, {trackers['updated_files']} updated files, {trackers['skipped_files']} skipped files, {trackers['archived_files']} archived files")
+    log_console(
+        f"{trackers['deduplicated_files']} deduplicated files, {trackers['updated_files']} updated files, {trackers['skipped_files']} skipped files, {trackers['archived_files']} archived files")
 
 
 if __name__ == "__main__":

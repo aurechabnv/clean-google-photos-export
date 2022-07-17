@@ -13,5 +13,7 @@
         ".json"
     ],
     "DEDUPLICATE_FILES": true,
+    "UPDATE_FILES": true,
+    "ARCHIVE_FILES": true,
     "ARCHIVE_FOLDER_NAME": "gp-files-cleaning-archive"
 }
