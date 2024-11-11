@@ -17,6 +17,7 @@ SOURCE_FILE = Path(__file__).resolve()
 SOURCE_DIR = SOURCE_FILE.parent
 
 # LOGGING
+# TODO: voir pour régler la verbosité dans les settings/en ligne de commande et mettre par défaut à INFO
 logging.basicConfig(level=logging.DEBUG,
                     filename=f"logs/logs-{datetime.now().timestamp()}.log",
                     filemode="w",
@@ -108,6 +109,7 @@ def get_photo_taken_date(json_file: Path) -> datetime:
     Returns: Photo Taken Time date
 
     """
+    # TODO: éviter de faire plein de trucs dans le context manager (lire le fichier et basta)
     with open(json_file, "r") as gfile:
         google_metadata = json.load(gfile)
         photo_taken_time_timestamp = google_metadata['photoTakenTime']['timestamp']
@@ -123,6 +125,7 @@ def exif_date_to_datetime(exif_date: bytes) -> datetime:
     Returns: Converted datetime
 
     """
+    # TODO: est-ce que ça peut échouer ?
     date_string = str(exif_date).strip('b\'')
     return datetime.strptime(date_string, "%Y:%m:%d %H:%M:%S")
 
@@ -173,6 +176,7 @@ def update_metadata(file_path: Path, new_date: datetime) -> bool:
         exif_bytes = piexif.dump(exif_dict)
         piexif.insert(exif_bytes, path)
 
+    # TODO: vérifier si on peut remplacer par un équivalent dans Path (pas trouvé à l'époque)
     os.utime(path, (datetime.timestamp(new_date), datetime.timestamp(new_date)))
     return True
 
