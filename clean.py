@@ -109,11 +109,11 @@ def get_photo_taken_date(json_file: Path) -> datetime:
     Returns: Photo Taken Time date
 
     """
-    # TODO: éviter de faire plein de trucs dans le context manager (lire le fichier et basta)
-    with open(json_file, "r") as gfile:
-        google_metadata = json.load(gfile)
-        photo_taken_time_timestamp = google_metadata['photoTakenTime']['timestamp']
-        return datetime.fromtimestamp(int(photo_taken_time_timestamp))
+    with open(json_file, "r") as google_file:
+        google_metadata = json.load(google_file)
+
+    photo_taken_time_timestamp = google_metadata['photoTakenTime']['timestamp']
+    return datetime.fromtimestamp(int(photo_taken_time_timestamp))
 
 
 def exif_date_to_datetime(exif_date: bytes) -> datetime:
