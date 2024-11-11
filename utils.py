@@ -14,7 +14,7 @@ def log_console(log_message: str):
 
 def warn_console(log_message: str):
     """
-    Log a warning message both to the soncole and into the logs
+    Log a warning message both to the console and into the logs
     Args:
         log_message: message to print
     """
